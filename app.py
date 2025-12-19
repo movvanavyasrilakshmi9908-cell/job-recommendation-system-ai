@@ -9,7 +9,7 @@ from model import JobRecommendationSystem
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
-    page_title=" JobGenie: Adaptive NLP-Powered Job Recommendation Platform",
+    page_title="JobFusion",
     page_icon="💼",
     layout="wide"
 )
@@ -39,7 +39,7 @@ for key, default in {
         st.session_state[key] = default
 
 
-# -------------------- HELPERS --------------------
+# -------------------- HELPERS ---------a-----------
 def extract_text_from_pdf(pdf_file):
     """Extract plain text from uploaded PDF resume."""
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
@@ -167,8 +167,8 @@ st.markdown(
 st.markdown(
     """
     <div style="display: flex; align-items: center; margin-bottom: 20px;">
-        <h1 style="margin: 0;">JobGenie</h1>
-        <h3 style="margin: 0; margin-left: 10px; color: #555;">Adaptive NLP-Powered Job Recommendation Platform</h3>
+        <h1 style="margin: 0;"></h1>
+        <h3 style="margin: 0; margin-left: 10px; color: #555;"></h3>
     </div>
     """,
     unsafe_allow_html=True
@@ -179,9 +179,9 @@ left_col, right_col = st.columns([1, 2])
 
 with left_col:
     st.markdown("#### Your Profile")
-    user_location = st.text_input("Your Location (e.g., city, state)", "New York, NY")
-    user_salary = st.text_input("Desired Salary (e.g., 120000)", "120000")
-    user_experience = st.text_input("Years of Experience", "5")
+    user_location = st.text_input("Your Location (e.g., city, state)", "Berlin Germany")
+    user_salary = st.text_input("Desired Salary (e.g., 120000)", "220000")
+    user_experience = st.text_input("Years of Experience", "3")
     st.markdown("---")
     st.markdown("#### Factor Weights")
     location_weight = st.slider("Location", 0.0, 1.0, 0.3, key="location_slider")
@@ -189,7 +189,7 @@ with left_col:
     experience_weight = st.slider("Experience", 0.0, 1.0, 0.3, key="experience_slider")
 
 with right_col:
-    st.markdown("#### Your JobGenie")
+    # st.markdown("#### Your JobFusion")
     with st.container():
         st.markdown(
             """
@@ -279,13 +279,13 @@ if st.session_state.enhanced_results:
     st.divider()
     er = st.session_state.enhanced_results
     
-    st.markdown("### 🚀 Enhanced Recommendations Dashboard")
+    st.markdown("### Enhanced Recommendations Dashboard")
 
     with st.container():
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            st.markdown("#### 🧮 Metrics")
+            st.markdown("####  Ranking Consistency Evaluation")
             m = er["metrics"]
             st.markdown(
                 f"<div style='display:flex; flex-wrap:wrap; gap:8px;'>"
@@ -296,7 +296,7 @@ if st.session_state.enhanced_results:
                 unsafe_allow_html=True
             )
 
-            st.markdown("#### 📈 Metrics Trend")
+            st.markdown("####  Metrics ")
             history = recommender.get_metrics_history()
             if not history.empty:
                 history_display = history.copy()
@@ -307,7 +307,7 @@ if st.session_state.enhanced_results:
                 st.caption("Run enhancement multiple times to see a trend.")
         
         with col2:
-            st.markdown("#### 📊 Old vs Enhanced (Top 20)")
+            st.markdown("####  Old vs Enhanced (Top 20)")
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("<div class='comparison-card old-rec'>", unsafe_allow_html=True)
