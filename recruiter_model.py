@@ -1,0 +1,118 @@
+import os
+import re
+import string
+import numpy as np
+import pandas as pd
+import faiss
+from sentence_transformers import SentenceTransformer
+
+# Load the same model as jobseeker side for consistency
+MODEL = SentenceTransformer("paraphrase-MiniLM-L6-v2", device="cpu")
+
+class RecruiterRankingSystem:
+    def __init__(self, resumes_csv: str):
+        if not os.path.exists(resumes_csv):
+            raise FileNotFoundError(f"Resumes CSV not found: {resumes_csv}")
+
+        self.resumes_df = pd.read_csv(resumes_csv)
+        self.resume_texts = self.resumes_df["resume_text"].astype(str).tolist()
+
+        # Precompute resume embeddings
+        self.resume_embeddings = MODEL.encode(self.resume_texts, convert_to_numpy=True).astype(np.float32)
+
+        # Initialize FAISS index
+        self.dim = self.resume_embeddings.shape[1]
+        self.index = faiss.IndexFlatIP(self.dim)
+        # Normalize embeddings for cosine similarity if using IndexFlatIP
+        norms = np.linalg.norm(self.resume_embeddings, axis=1, keepdims=True)
+        self.resume_embeddings_norm = self.resume_embeddings / (norms + 1e-9)
+        self.index.add(self.resume_embeddings_norm)
+
+    def clean_text(self, text: str) -> str:
+        text = text.lower()
+        text = text.translate(str.maketrans("", "", string.punctuation))
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+    def extract_skills(self, text: str):
+        # Basic keyword-based extraction (can be improved with a dictionary or NER)
+        # For now, let's use a simple set of common tech skills
+        common_skills = {
+            "python", "django", "flask", "fastapi", "java", "spring boot", "react", "angular", "vue.js",
+            "javascript", "node.js", "typescript", "c++", "embedded", "aws", "azure", "docker", "kubernetes",
+            "postgresql", "mysql", "oracle", "redis", "mongodb", "machine learning", "ai", "nlp", "pytorch",
+            "tensorflow", "scikit-learn", "ci/cd", "linux", "cloud architecture", "figma", "adobe xd",
+            "ui/ux", "tableau", "sql", "excel", "spark", "hadoop", "scala", "solidity", "ethereum", "blockchain"
+        }
+        text_lower = text.lower()
+        found_skills = {skill for skill in common_skills if re.search(r'\b' + re.escape(skill) + r'\b', text_lower)}
+        return found_skills
+
+    def extract_experience_years(self, text: str):
+        # Look for patterns like "3+ years", "5 years", etc.
+        matches = re.findall(r'(\d+)\s*\+?\s*years?', text.lower())
+        if matches:
+            return max([int(m) for m in matches])
+        return 0
+
+    def rank_candidates(self, job_description: str, top_k: int = 20, min_experience: int = 0):
+        # 1. Clean and Embed JD
+        clean_jd = self.clean_text(job_description)
+        jd_embedding = MODEL.encode([clean_jd], convert_to_numpy=True).astype(np.float32)
+        jd_embedding_norm = jd_embedding / (np.linalg.norm(jd_embedding) + 1e-9)
+
+        # 2. Semantic Similarity Search
+        distances, indices = self.index.search(jd_embedding_norm, len(self.resume_texts))
+
+        # 3. Process candidates
+        jd_skills = self.extract_skills(clean_jd)
+        jd_required_exp = self.extract_experience_years(clean_jd)
+
+        results = []
+        for i, idx in enumerate(indices[0]):
+            candidate = self.resumes_df.iloc[idx]
+            semantic_score = float(distances[0][i])
+
+            # Skill Score
+            resume_skills = set(str(candidate["skills"]).lower().split(';'))
+            if not jd_skills:
+                skill_score = 1.0
+            else:
+                matched_skills = jd_skills.intersection(resume_skills)
+                skill_score = len(matched_skills) / len(jd_skills)
+
+            # Experience Score
+            candidate_exp = float(candidate["experience"])
+            if candidate_exp < min_experience:
+                continue # Filter out if below minimum requirement
+
+            if jd_required_exp == 0:
+                experience_score = 1.0
+            else:
+                if candidate_exp >= jd_required_exp:
+                    experience_score = 1.0
+                else:
+                    experience_score = candidate_exp / jd_required_exp
+
+            # Final Score Calculation
+            final_score = (0.5 * semantic_score) + (0.3 * skill_score) + (0.2 * experience_score)
+
+            # Ensure no NaNs in final score (fall back to 0)
+            if np.isnan(final_score):
+                final_score = 0.0
+
+            results.append({
+                "candidate_id": str(candidate["candidate_id"]),
+                "final_score": round(final_score, 4),
+                "semantic_score": round(semantic_score, 4),
+                "skill_score": round(skill_score, 4),
+                "experience_score": round(experience_score, 4),
+                "matched_skills": sorted(list(jd_skills.intersection(resume_skills))),
+                "all_skills": sorted(list(resume_skills)),
+                "experience": candidate_exp,
+                "resume_summary": candidate["resume_text"][:200] + "..."
+            })
+
+        # Sort and return top_k
+        results = sorted(results, key=lambda x: x["final_score"], reverse=True)
+        return results[:top_k]

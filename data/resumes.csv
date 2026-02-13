@@ -1,0 +1,21 @@
+candidate_id,resume_text,skills,experience
+1,"Experienced Python Developer with 5 years in backend development. Proficient in Django, Flask, and PostgreSQL. Worked on scalable microservices.","Python;Django;Flask;PostgreSQL;Microservices",5
+2,"Junior Frontend Developer with 2 years of experience. Expert in React, Vue.js, and CSS. Looking for opportunities in UI/UX.","React;Vue.js;CSS;JavaScript",2
+3,"Senior Data Scientist with 8 years in machine learning and AI. Proficient in Python, PyTorch, and AWS. Experience in building LLMs.","Python;PyTorch;AWS;Machine Learning;AI",8
+4,"DevOps Engineer with 4 years of experience in CI/CD, Docker, and Kubernetes. Strong background in AWS and Linux.","Docker;Kubernetes;CI/CD;AWS;Linux",4
+5,"Backend Engineer with 6 years of experience in Java and Spring Boot. Skilled in microservices and Oracle DB.","Java;Spring Boot;Microservices;Oracle",6
+6,"Full Stack Developer with 3 years of experience. Proficient in JavaScript, Node.js, and React. Passionate about building web apps.","JavaScript;Node.js;React;Full Stack",3
+7,"Machine Learning Engineer with 3 years of experience. Skilled in Python, Scikit-learn, and TensorFlow. Worked on NLP projects.","Python;Scikit-learn;TensorFlow;NLP",3
+8,"Cloud Architect with 10 years of experience in Azure and AWS. Certified Solutions Architect.","Azure;AWS;Cloud Architecture",10
+9,"Software Engineer with 4 years of experience in C++ and embedded systems. Experience in automotive industry.","C++;Embedded Systems;Automotive",4
+10,"Frontend Developer with 5 years of experience in Angular and TypeScript. Strong UI/UX design skills.","Angular;TypeScript;UI/UX",5
+11,"Data Analyst with 2 years of experience. Proficient in SQL, Tableau, and Excel. Strong analytical skills.","SQL;Tableau;Excel;Data Analysis",2
+12,"Cybersecurity Specialist with 7 years of experience in network security and penetration testing. CISSP certified.","Cybersecurity;Network Security;Penetration Testing;CISSP",7
+13,"Mobile App Developer with 4 years of experience in Flutter and Dart. Published several apps on Play Store.","Flutter;Dart;Mobile Development",4
+14,"Backend Developer with 3 years of experience in Python and FastAPI. Experience with Redis and Celery.","Python;FastAPI;Redis;Celery",3
+15,"Product Manager with 5 years of experience in agile methodologies and product lifecycle management.","Product Management;Agile;Scrum",5
+16,"System Administrator with 6 years of experience in Linux and Windows server management.","Linux;Windows Server;System Administration",6
+17,"UI/UX Designer with 4 years of experience in Figma and Adobe XD. Focus on user-centric design.","Figma;Adobe XD;UI/UX",4
+18,"Quality Assurance Engineer with 3 years of experience in automated testing with Selenium and Java.","QA;Selenium;Java;Automation",3
+19,"Big Data Engineer with 5 years of experience in Spark, Hadoop, and Scala.","Spark;Hadoop;Scala;Big Data",5
+20,"Blockchain Developer with 2 years of experience in Solidity and Ethereum.","Solidity;Ethereum;Blockchain",2
