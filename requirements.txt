@@ -6,3 +6,7 @@ sentence-transformers
 faiss-cpu
 scikit-learn
 pymupdf
+fastapi
+uvicorn
+requests
+pydantic
