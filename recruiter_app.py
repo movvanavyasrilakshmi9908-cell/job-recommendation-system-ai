@@ -1,8 +1,8 @@
 import streamlit as st
-import requests
 import pandas as pd
 import fitz  # PyMuPDF
 import os
+from recruiter_model import RecruiterRankingSystem
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
@@ -11,7 +11,12 @@ st.set_page_config(
     layout="wide"
 )
 
-BACKEND_URL = "http://localhost:8000/rank_candidates"
+# -------------------- MODEL LOADING --------------------
+@st.cache_resource
+def load_ranking_system():
+    return RecruiterRankingSystem("data/resumes.csv")
+
+ranking_system = load_ranking_system()
 
 # -------------------- HELPERS --------------------
 def extract_text_from_pdf(pdf_file):
@@ -75,19 +80,15 @@ with col1:
         else:
             with st.spinner("Ranking candidates..."):
                 try:
-                    payload = {
-                        "job_description": jd_text,
-                        "top_k": top_k,
-                        "min_experience": min_exp
-                    }
-                    response = requests.post(BACKEND_URL, json=payload)
-                    if response.status_code == 200:
-                        st.session_state.ranked_candidates = response.json()["candidates"]
-                        st.success(f"Found {len(st.session_state.ranked_candidates)} candidates.")
-                    else:
-                        st.error(f"Error from backend: {response.text}")
+                    results = ranking_system.rank_candidates(
+                        job_description=jd_text,
+                        top_k=top_k,
+                        min_experience=min_exp
+                    )
+                    st.session_state.ranked_candidates = results
+                    st.success(f"Found {len(st.session_state.ranked_candidates)} candidates.")
                 except Exception as e:
-                    st.error(f"Connection error: {e}")
+                    st.error(f"Error ranking candidates: {e}")
 
 with col2:
     st.subheader("Ranked Candidates")
