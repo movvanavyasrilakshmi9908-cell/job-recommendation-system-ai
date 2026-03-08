@@ -103,7 +103,7 @@ def extract_text_from_pdf(file):
 
 # ---------------- HEADER ----------------
 
-st.title("🎯 Recruiter Candidate Ranking Dashboard")
+# st.title("🎯 Recruiter Candidate Ranking Dashboard")
 
 
 # ---------------- SIDEBAR ----------------
