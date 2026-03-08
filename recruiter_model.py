@@ -110,11 +110,11 @@ class RecruiterRankingSystem:
 
                 "final_score":round(final,4),
 
-                "semantic_score":round(semantic,4),
+                # "semantic_score":round(semantic,4),
 
-                "skill_score":round(skill_score,4),
+                # "skill_score":round(skill_score,4),
 
-                "experience_score":round(exp_score,4),
+                # "experience_score":round(exp_score,4),
 
                 "matched_skills":list(match),
 

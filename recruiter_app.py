@@ -179,9 +179,9 @@ if st.session_state.ranked_candidates:
         "phone",
         "email",
         "final_score",
-        "semantic_score",
-        "skill_score",
-        "experience_score"
+        # "semantic_score",
+        # "skill_score",
+        # "experience_score"
     ]
 
     cols = [c for c in cols if c in df.columns]
@@ -227,20 +227,20 @@ if st.session_state.ranked_candidates:
                 unsafe_allow_html=True
             )
 
-            st.markdown(
-                f"Semantic Score: <span class='score-blue'>{cand['semantic_score']}</span>",
-                unsafe_allow_html=True
-            )
+            # st.markdown(
+            #     f"Semantic Score: <span class='score-blue'>{cand['semantic_score']}</span>",
+            #     unsafe_allow_html=True
+            # )
 
-            st.markdown(
-                f"Skill Score: <span class='score-blue'>{cand['skill_score']}</span>",
-                unsafe_allow_html=True
-            )
+            # st.markdown(
+            #     f"Skill Score: <span class='score-blue'>{cand['skill_score']}</span>",
+            #     unsafe_allow_html=True
+            # )
 
-            st.markdown(
-                f"Experience Score: <span class='score-blue'>{cand['experience_score']}</span>",
-                unsafe_allow_html=True
-            )
+            # st.markdown(
+            #     f"Experience Score: <span class='score-blue'>{cand['experience_score']}</span>",
+            #     unsafe_allow_html=True
+            # )
 
             st.markdown(
                 f"Final Score: <span class='score-blue'>{cand['final_score']}</span>",
