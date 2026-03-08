@@ -1,6 +1,6 @@
-﻿#  JobGenie: Adaptive NLP-Powered Job Recommendation Platform
+﻿#  JobFusion: Adaptive NLP-Powered Job Recommendation Platform
 
-**JobGenie** is an AI-driven job recommendation engine that analyzes resumes and suggests the most relevant job opportunities based on your **skills, experience, and career background**.  
+**JobFusion** is an AI-driven job recommendation engine that analyzes resumes and suggests the most relevant job opportunities based on your **skills, experience, and career background**.  
 It leverages **Natural Language Processing (NLP)** and **semantic similarity search** to deliver accurate, explainable, and personalized job matches.
 
 ---
