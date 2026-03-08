@@ -19,3 +19,8 @@ candidate_id,name,phone,email,resume_text,skills,experience
 18,Rachel Green,555-909-7351,rachel.green@example.com,Quality Assurance Engineer with 3 years of experience in automated testing with Selenium and Java.,QA;Selenium;Java;Automation,3
 19,Steve Rogers,555-864-5631,steve.rogers@example.com,"Big Data Engineer with 5 years of experience in Spark, Hadoop, and Scala.",Spark;Hadoop;Scala;Big Data,5
 20,Tony Stark,555-634-8878,tony.stark@example.com,Blockchain Developer with 2 years of experience in Solidity and Ethereum.,Solidity;Ethereum;Blockchain,2
+21,John Smith,(555) 987-6543,john.smith@gmail.com,"John Smith
+Software Engineer
+john.smith@gmail.com | (555) 987-6543
+Experience: 5+ years in building scalable systems.
+Skills: Python, React, SQL, AWS, Docker",python;sql;docker;react;aws,5
