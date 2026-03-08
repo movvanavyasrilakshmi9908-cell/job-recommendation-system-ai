@@ -37,11 +37,7 @@ The dashboard provides an intuitive interface for recruiters to:
 
 ## Setup & Running
 
-1. **Start the Backend API:**
-   ```bash
-   python backend.py
-   ```
-2. **Start the Recruiter Dashboard:**
+1. **Start the Recruiter Dashboard:**
    ```bash
    streamlit run recruiter_app.py
    ```
