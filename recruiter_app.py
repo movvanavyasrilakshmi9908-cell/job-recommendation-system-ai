@@ -175,6 +175,9 @@ if st.session_state.ranked_candidates:
 
     cols = [
         "candidate_id",
+        "name",
+        "phone",
+        "email",
         "final_score",
         "semantic_score",
         "skill_score",
@@ -192,7 +195,9 @@ if st.session_state.ranked_candidates:
 
         st.markdown("<div class='job-card'>", unsafe_allow_html=True)
 
-        st.subheader(f"Candidate {cand['candidate_id']}")
+        st.subheader(f"Candidate {cand['candidate_id']} - {cand.get('name', 'Unknown')}")
+
+        st.markdown(f"**Phone:** {cand.get('phone', 'Unknown')} | **Email:** {cand.get('email', 'Unknown')}")
 
         score = cand["final_score"] * 100
 
