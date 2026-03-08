@@ -5,6 +5,26 @@ import numpy as np
 import pandas as pd
 import faiss
 from sentence_transformers import SentenceTransformer
+from sklearn.metrics import ndcg_score
+
+def _spearman_r(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    Compute Spearman rank correlation without external deps.
+    Returns in [-1, 1]. Handles constant arrays.
+    """
+    if a.size == 0 or b.size == 0:
+        return 0.0
+    a_ranks = pd.Series(a).rank(method="average").to_numpy()
+    b_ranks = pd.Series(b).rank(method="average").to_numpy()
+    a_center = a_ranks - a_ranks.mean()
+    b_center = b_ranks - b_ranks.mean()
+    denom = (np.linalg.norm(a_center) * np.linalg.norm(b_center)) + 1e-9
+    return float(np.dot(a_center, b_center) / denom)
+
+
+def _ensure_data_dir(path: str):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
 
 # ---------------- MODEL LOADING ----------------
 
@@ -54,6 +74,9 @@ class RecruiterRankingSystem:
         self.index = faiss.IndexFlatIP(self.dim)
 
         self.index.add(self.resume_embeddings)
+
+        # Metrics log path
+        self.metrics_path = os.path.join("data", "recruiter_metrics.csv")
 
     # ---------------- TEXT CLEANING ----------------
 
@@ -105,13 +128,56 @@ class RecruiterRankingSystem:
 
         return 0
 
+    def load_feedback_embeddings(self, jd_id: str, feedback_file: str = "data/recruiter_ratings.csv"):
+        """
+        Load ratings and return (embeddings, ratings, merged_df).
+        - ratings must be numeric (1..5)
+        """
+        if not os.path.exists(feedback_file):
+            return None, None, None
+
+        df = pd.read_csv(feedback_file)
+        if df.empty or "rating" not in df.columns:
+            return None, None, None
+
+        # Filter by jd_id
+        df = df[df["jd_id"].astype(str) == str(jd_id)]
+        if df.empty:
+            return None, None, None
+
+        # Ensure numeric ratings and string ids for join safety
+        df = df[df["rating"].astype(str).str.isnumeric()].copy()
+        if df.empty:
+            return None, None, None
+        df["rating"] = df["rating"].astype(float)
+
+        # Join with resume info to build embeddings for rated resumes
+        merged = pd.merge(df, self.resumes_df, left_on="candidate_id", right_on="candidate_id", how="inner")
+        if merged.empty:
+            return None, None, None
+
+        resume_embeds = self.model.encode(merged["resume_text"].astype(str).tolist(), convert_to_numpy=True).astype(np.float32)
+        ratings = merged["rating"].to_numpy(dtype=np.float32)
+        return resume_embeds, ratings, merged
+
+    @staticmethod
+    def _alpha_from_num_ratings(n_ratings: int) -> float:
+        """
+        Adaptive blend between JD similarity (alpha) and feedback (1-alpha).
+        - Start at alpha≈0.9 with few ratings; decay to 0.5 as ratings grow.
+        """
+        alpha = 0.9 - 0.04 * n_ratings  # each rating reduces JD weight by 0.04
+        return float(np.clip(alpha, 0.5, 0.9))
+
     # ---------------- MAIN RANKING FUNCTION ----------------
 
     def rank_candidates(
         self,
         job_description: str,
         top_k: int = 20,
-        min_experience: int = 0
+        min_experience: int = 0,
+        use_feedback: bool = False,
+        jd_id: str = None
     ):
 
         clean_jd = self.clean_text(job_description)
@@ -197,10 +263,132 @@ class RecruiterRankingSystem:
                 candidate["resume_text"][:200] + "..."
             })
 
+
+        # Base final score calculation
+        for r in results:
+            r["adjusted_score"] = r["final_score"]
+
+        if use_feedback and jd_id:
+            rated_embeds, ratings, _ = self.load_feedback_embeddings(jd_id=jd_id)
+            if rated_embeds is not None and len(ratings) > 0:
+                # Weighted user preferences vector based on feedback
+                if np.max(ratings) == np.min(ratings):
+                    norm_r = np.ones_like(ratings) / len(ratings)
+                else:
+                    norm_r = (ratings - ratings.min()) / (ratings.max() - ratings.min() + 1e-9)
+
+                if np.sum(norm_r) == 0:
+                    norm_r = np.ones_like(ratings) / len(ratings)
+
+                user_vec = np.average(rated_embeds, axis=0, weights=norm_r).astype(np.float32)
+
+                # Apply feedback-driven re-ranking
+                alpha = self._alpha_from_num_ratings(len(ratings))          # jd weight
+                beta = 1.0 - alpha                                          # feedback weight
+
+                for r in results:
+                    candidate_id = r["candidate_id"]
+                    candidate_idx = self.resumes_df[self.resumes_df["candidate_id"].astype(str) == candidate_id].index[0]
+                    cand_embed = self.resume_embeddings[candidate_idx]
+
+                    # Cosine similarity to user preference vector
+                    up_sim = np.dot(cand_embed, user_vec) / (
+                        np.linalg.norm(cand_embed) * np.linalg.norm(user_vec) + 1e-9
+                    )
+
+                    r["adjusted_score"] = alpha * r["final_score"] + beta * up_sim
+
+        # Sort by adjusted_score if use_feedback, otherwise final_score
+        sort_key = "adjusted_score" if use_feedback else "final_score"
         results = sorted(
             results,
-            key=lambda x: x["final_score"],
+            key=lambda x: x[sort_key],
             reverse=True
         )
 
         return results[:top_k]
+
+    # ---------------- RETRAIN / EVALUATE ----------------
+
+    def retrain_with_feedback(self, job_description: str, jd_id: str, top_k: int = 20, min_experience: int = 0):
+        """
+        Compare old vs enhanced results and compute metrics.
+        """
+        # Old: no feedback
+        old_results = self.rank_candidates(job_description, top_k=top_k, min_experience=min_experience, use_feedback=False)
+        old = pd.DataFrame(old_results)
+
+        # New: with feedback
+        new_results = self.rank_candidates(job_description, top_k=top_k, min_experience=min_experience, use_feedback=True, jd_id=jd_id)
+        new = pd.DataFrame(new_results)
+
+        if old.empty or new.empty:
+             return None
+
+        # Align on candidate_id to compare scores directly
+        comp = old[["candidate_id", "final_score"]].merge(
+            new[["candidate_id", "adjusted_score"]], on="candidate_id", how="outer"
+        )
+
+        # Metrics (fill NAs with 0 for fair comparison)
+        y_true = comp["final_score"].fillna(0).to_numpy()
+        y_score = comp["adjusted_score"].fillna(0).to_numpy()
+
+        # NDCG@top_k
+        ndcg = float(ndcg_score([y_true], [y_score]))
+
+        # Spearman rank correlation
+        spear = _spearman_r(y_true, y_score)
+
+        # Reordered percentage (by candidate_id order change)
+        old_order = {cid: i for i, cid in enumerate(old["candidate_id"].tolist())}
+        new_order = {cid: i for i, cid in enumerate(new["candidate_id"].tolist())}
+        common_ids = [cid for cid in old_order if cid in new_order]
+        moved = sum(1 for cid in common_ids if old_order[cid] != new_order[cid])
+        reordered_pct = (moved / max(1, len(common_ids))) * 100.0
+
+        # Log metrics over time
+        _ensure_data_dir(self.metrics_path)
+        log_row = pd.DataFrame([{
+            "timestamp": pd.Timestamp.now().isoformat(),
+            "jd_id": jd_id,
+            "ndcg_at_k": round(ndcg, 4),
+            "spearman_r": round(float(spear), 4),
+            "reordered_pct": round(reordered_pct, 2),
+            "k": top_k
+        }])
+        if os.path.exists(self.metrics_path):
+            log_row.to_csv(self.metrics_path, mode="a", header=False, index=False)
+        else:
+            log_row.to_csv(self.metrics_path, mode="w", header=True, index=False)
+
+        return {
+            "old_candidates": old.to_dict(orient="records"),
+            "new_candidates": new.to_dict(orient="records"),
+            "comparison": comp,
+            "metrics": {
+                "ndcg_at_k": round(ndcg, 3),
+                "spearman_r": round(float(spear), 3),
+                "reordered_pct": round(reordered_pct, 1),
+            },
+        }
+
+    def get_metrics_history(self):
+        """Return metrics history DataFrame if available."""
+        full_schema = [
+            "timestamp", "jd_id", "ndcg_at_k", "spearman_r", "reordered_pct", "k"
+        ]
+        if not os.path.exists(self.metrics_path):
+            return pd.DataFrame(columns=full_schema)
+        try:
+            df = pd.read_csv(self.metrics_path, header=None)
+            # Assign columns based on the number of columns found in the file
+            num_cols = len(df.columns)
+            df.columns = full_schema[:num_cols]
+            # Ensure all columns from the schema are present
+            for col in full_schema:
+                if col not in df.columns:
+                    df[col] = pd.NA
+            return df[full_schema]
+        except (pd.errors.ParserError, pd.errors.EmptyDataError):
+            return pd.DataFrame(columns=full_schema)
