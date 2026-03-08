@@ -104,6 +104,10 @@ class RecruiterRankingSystem:
 
                 "candidate_id":str(cand["candidate_id"]),
 
+                "name": str(cand.get("name", "Unknown")),
+                "phone": str(cand.get("phone", "Unknown")),
+                "email": str(cand.get("email", "Unknown")),
+
                 "final_score":round(final,4),
 
                 "semantic_score":round(semantic,4),
