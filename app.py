@@ -40,11 +40,43 @@ for key, default in {
 
 
 # -------------------- HELPERS ---------a-----------
+import re
+
 def extract_text_from_pdf(pdf_file):
     """Extract plain text from uploaded PDF resume."""
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     text = "\n".join([page.get_text("text") for page in doc])
-    return text.strip().lower()
+    return text.strip()
+
+
+def extract_candidate_details(text):
+    """Extract basic details from resume text to save for recruiters."""
+    # Name: Assume the first non-empty line is the candidate's name
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    name = lines[0] if lines else "Unknown"
+
+    # Email
+    email_match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
+    email = email_match.group(0) if email_match else "Unknown"
+
+    # Phone
+    phone_match = re.search(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", text)
+    phone = phone_match.group(0) if phone_match else "Unknown"
+
+    # Experience (heuristic: look for digits followed by 'years')
+    exp_match = re.search(r"(\d+)\s*\+?\s*years?", text, re.IGNORECASE)
+    experience = int(exp_match.group(1)) if exp_match else 0
+
+    # Skills (simple keyword matching)
+    common_skills = {
+        "python", "java", "aws", "docker", "react", "sql", "machine learning",
+        "nlp", "kubernetes", "c++", "javascript", "node.js", "django", "flask",
+        "pytorch", "tensorflow", "vue.js", "css", "html", "azure", "linux", "oracle"
+    }
+    found_skills = {s for s in common_skills if s in text.lower()}
+    skills_str = ";".join(found_skills) if found_skills else "Unknown"
+
+    return name, email, phone, experience, skills_str
 
 
 def ensure_ratings_dir():
@@ -81,6 +113,43 @@ def save_rating(resume_id, job_id, rating):
 
     df["rating"] = df["rating"].astype(int)
     df.to_csv(feedback_file, index=False)
+
+
+def save_resume_for_recruiter(resume_text):
+    """Saves the uploaded resume to resumes.csv so recruiters can view it."""
+    ensure_ratings_dir()
+    resumes_file = os.path.join(RATINGS_DIR, "resumes.csv")
+
+    # Extract details
+    name, email, phone, experience, skills = extract_candidate_details(resume_text)
+
+    # Check if the CSV exists and determine the next ID
+    if os.path.exists(resumes_file):
+        df = pd.read_csv(resumes_file)
+        next_id = int(df["candidate_id"].max()) + 1 if not df.empty else 1
+    else:
+        df = pd.DataFrame(columns=["candidate_id", "name", "phone", "email", "resume_text", "skills", "experience"])
+        next_id = 1
+
+    # Check if we already have this exact resume text (to avoid duplicates from same session)
+    if not df.empty and resume_text in df["resume_text"].values:
+        return
+
+    # Create the new entry
+    new_entry = {
+        "candidate_id": next_id,
+        "name": name,
+        "phone": phone,
+        "email": email,
+        "resume_text": resume_text,
+        "skills": skills,
+        "experience": experience
+    }
+
+    # Append to the dataframe and save
+    df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+    df.to_csv(resumes_file, index=False)
+    st.toast("📄 Resume successfully indexed for recruiter visibility!")
 
 
 def run_recommend(
@@ -210,6 +279,9 @@ with right_col:
             st.session_state.results_ready = False
             st.session_state.enhanced_results = None
             st.toast("Resume uploaded successfully!")
+
+            # Save the newly uploaded resume to resumes.csv
+            save_resume_for_recruiter(st.session_state.resume_text)
 
     btn_cols = st.columns(2)
     with btn_cols[0]:
